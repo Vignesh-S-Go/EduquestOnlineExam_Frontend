@@ -56,47 +56,6 @@ const About = () => {
         </div>
       </div>
 
-   
-      <div className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900">Our Team</h2>
-            <p className="mt-4 text-xl text-gray-500">
-              Meet the passionate individuals behind ExamPro
-            </p>
-          </div>
-
-          <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2">
-            {[
-              {
-                name: 'S VIGNESH ',
-                role: 'Creator of ExamPro',
-                image: '../src/pages/Vi.jpg',
-              },
-              {
-                name: 'C H SHAKETH',
-                role: 'Co-Creator of ExamPro',
-                image: '../src/pages/Ash.jpg',
-              },
-            ].map((member) => (
-              <div key={member.name} className="text-center">
-                <div className="relative">
-                  <img
-                    className="mx-auto h-48 w-48 rounded-full object-cover"
-                    src={member.image}
-                    alt={member.name}
-                  />
-                </div>
-                <div className="mt-4">
-                  <h3 className="text-lg font-medium text-gray-900">{member.name}</h3>
-                  <p className="text-indigo-600">{member.role}</p>
-                  
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

@@ -40,7 +40,7 @@ const Contact = () => {
                 <Mail className="h-6 w-6 text-indigo-600 mt-1" />
                 <div>
                   <h3 className="font-semibold">Email</h3>
-                  <p className="text-gray-600">support@exampro.com</p>
+                  <p className="text-gray-600">support@eduquest.com</p>
                 </div>
               </div>
 
@@ -57,9 +57,9 @@ const Contact = () => {
                 <div>
                   <h3 className="font-semibold">Address</h3>
                   <p className="text-gray-600">
-                    123 Exam Street<br />
-                    Education City, ST 12345<br />
-                    United States
+                    12 Murugan Street<br />
+                    Chennai , Tamil Nadu<br />
+                    India
                   </p>
                 </div>
               </div>

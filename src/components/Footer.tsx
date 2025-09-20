@@ -41,7 +41,9 @@ const Footer = () => {
               </li>
               <li className="flex items-center space-x-2">
                 <MapPin size={18} />
-                <span>21 EduQuest, Thanjavur-613004,TamilNadu</span>
+                <span>12 Murugan Street
+                  Chennai , Tamil Nadu
+                  India</span>
               </li>
             </ul>
           </div>
