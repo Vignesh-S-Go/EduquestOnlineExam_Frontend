@@ -66,7 +66,7 @@ const About = () => {
             </p>
           </div>
 
-          <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
+          <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2">
             {[
               {
                 name: 'S VIGNESH ',
@@ -74,14 +74,9 @@ const About = () => {
                 image: '../src/pages/Vi.jpg',
               },
               {
-                name: 'K SHANMUKH ',
-                role: 'Co-Creator',
-                image: '../src/pages/shan.jpg',
-              },
-              {
-                name: 'B PRADUMNA KUMAR',
-                role: 'Co-Creator',
-                image: '../src/pages/prad.jpg',
+                name: 'C H SHAKETH',
+                role: 'Co-Creator of ExamPro',
+                image: '../src/pages/Ash.jpg',
               },
             ].map((member) => (
               <div key={member.name} className="text-center">

@@ -1,27 +1,21 @@
 import emailjs from '@emailjs/browser';
 import axios from 'axios';
-import { Bell, BookOpen, CheckCircle, CheckCircle2, ClipboardList, CreditCard, Download, FileText, Home, LogOut, Search, Timer, Upload } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { jwtDecode } from 'jwt-decode';
+import { Bell, BookOpen, CheckCircle, CheckCircle2, ClipboardList, CreditCard, Eye, FileText, Home, LogOut, Search, Timer } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-
 
 // --- REFACTORED API HANDLING ---
-
-// 1. Define the base URL for your API
 const API_BASE_URL = 'http://localhost:8081/api';
 
-// 2. Helper function to get the auth token from storage
 const getAuthToken = () => {
   return localStorage.getItem('token') || sessionStorage.getItem('token');
 };
 
-// 3. Create a single, centralized Axios instance
 const api = axios.create({
   baseURL: API_BASE_URL
 });
 
-// 4. Use an interceptor to automatically add the token to every request
 api.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
@@ -36,40 +30,22 @@ api.interceptors.request.use(
   }
 );
 
-
 api.interceptors.response.use(
   (response) => {
-    // If the request was successful, just return the response
     return response;
   },
   (error) => {
-    // Check if the error is a 401 Unauthorized
     if (error.response && error.response.status === 401) {
       console.log('Token expired or invalid. Redirecting to login.');
-      // 1. Remove the invalid token from storage
-      localStorage.removeItem('token'); // Or 'jwtToken', whichever key you use
-      
-      // 2. Redirect the user to the login page
+      localStorage.removeItem('token');
       window.location.href = '/login'; 
     }
-    
-    // For all other errors, just return the error promise
     return Promise.reject(error);
   }
 );
 // --- END OF REFACTORED API HANDLING ---
 
-const data = [
-  { name: 'Jan', exams: 30, students: 40, revenue: 2400 },
-  { name: 'Feb', exams: 35, students: 45, revenue: 2800 },
-  { name: 'Mar', exams: 32, students: 42, revenue: 2600 },
-  { name: 'Apr', exams: 40, students: 48, revenue: 3200 },
-  { name: 'May', exams: 38, students: 46, revenue: 3000 },
-  { name: 'Jun', exams: 45, students: 52, revenue: 3600 },
-  { name: 'Jul', exams: 42, students: 50, revenue: 3400 },
-  { name: 'Aug', exams: 48, students: 55, revenue: 3800 },
-];
-
+// --- INTERFACES ---
 interface Question {
   id: number;
   text: string;
@@ -77,28 +53,51 @@ interface Question {
   correctAnswer: number;
 }
 
+interface DecodedToken {
+  exp: number; // The expiration time (in seconds since epoch)
+  [key: string]: any; // Allow other properties if needed
+}
+
+// UPDATED: This interface now matches the backend response more closely
 interface Exam {
+  examId: number;
+  registrationId: number; // Crucial for start/complete actions
+  examName: string;
+  date: string;
+  status: "Registered" | "Upcoming" | "Completed" | "In Progress";
+  subject: string;
+  duration: string;
+  score?: number;
+}
+
+// This interface is for exams available for registration
+interface AvailableExam {
+    id: number;
+    examName: string;
+    subject: string;
+    duration: string;
+    price: number;
+    description: string;
+    totalQuestions: number;
+}
+
+interface Report {
   id: number;
   name: string;
-  date: string;
-  students: number;
-  status: "Upcoming" | "Completed";
   subject: string;
-  value: number;
-  questions: number;
-  timeRemains: string;
-}
-
-
-interface Registration {
-  id: number;
-  student: string;
-  exam: Exam;
   date: string;
-  status: 'Pending' | 'Confirmed' | 'Completed';
-  paymentStatus: 'Pending' | 'Paid';
+  score: number;
+  totalQuestions: number;
+  status: 'Completed';
 }
 
+interface Payment {
+    id: number;
+    studentName: string; // From backend response
+    amount: number;
+    date: string;
+    status: 'Paid' | 'Pending' | 'Failed';
+}
 
 interface UserProfile {
   id: number;
@@ -107,147 +106,42 @@ interface UserProfile {
   role: string;
 }
 
-const questions: Question[] = [
-  {
-    id: 1,
-    text: "What is the time complexity of the QuickSort algorithm in the average case?",
-    options: ["O(n²)", "O(n log n)", "O(log n)", "O(n)"],
-    correctAnswer: 1
-  },
-  {
-    id: 2,
-    text: "Which data structure uses FIFO (First-In-First-Out) principle?",
-    options: ["Stack", "Queue", "Tree", "Graph"],
-    correctAnswer: 1
-  },
-  {
-    id: 3,
-    text: "What is the main purpose of an index in a database?",
-    options: ["To store data", "To improve query performance", "To backup data", "To encrypt data"],
-    correctAnswer: 1
-  },
-  {
-    id: 4,
-    text: "Which protocol is used to send email?",
-    options: ["FTP", "SMTP", "HTTP", "SSH"],
-    correctAnswer: 1
-  },
-  {
-    id: 5,
-    text: "What does CSS stand for?",
-    options: ["Computer Style Sheets", "Creative Style Sheets", "Cascading Style Sheets", "Colorful Style Sheets"],
-    correctAnswer: 2
-  },
-  {
-    id: 6,
-    text: "Which of these is not a JavaScript framework?",
-    options: ["React", "Angular", "Laravel", "Vue"],
-    correctAnswer: 2
-  },
-  {
-    id:7,
-    text: "What is the capital of France?",
-    options: ["London", "Madrid", "Paris", "Berlin"],
-    correctAnswer: 2
-  },
-  {
-    id: 8,
-    text: "What is the capital of Germany?",
-    options: ["London", "Madrid", "Paris", "Berlin"],
-    correctAnswer: 3
-  },
-  {
-    id: 9,
-    text: "What is the capital of Spain?",
-    options: ["London", "Madrid", "Paris", "Berlin"],
-    correctAnswer: 1
-  },
-  {
-    id: 10,
-    text: "What is the capital of England?",
-    options: ["London", "Madrid", "Paris", "Berlin"],
-    correctAnswer: 0
-  }
-];
+// --- MOCK DATA (Only for exam questions, as this is not yet fetched from backend) ---
+const questions: Question[] = [ { id: 1, text: "What is the time complexity of the QuickSort algorithm in the average case?", options: ["O(n²)", "O(n log n)", "O(log n)", "O(n)"], correctAnswer: 1 }, { id: 2, text: "Which data structure uses FIFO (First-In-First-Out) principle?", options: ["Stack", "Queue", "Tree", "Graph"], correctAnswer: 1 }, { id: 3, text: "What is the main purpose of an index in a database?", options: ["To store data", "To improve query performance", "To backup data", "To encrypt data"], correctAnswer: 1 }, { id: 4, text: "Which protocol is used to send email?", options: ["FTP", "SMTP", "HTTP", "SSH"], correctAnswer: 1 }, { id: 5, text: "What does CSS stand for?", options: ["Computer Style Sheets", "Creative Style Sheets", "Cascading Style Sheets", "Colorful Style Sheets"], correctAnswer: 2 }, { id: 6, text: "Which of these is not a JavaScript framework?", options: ["React", "Angular", "Laravel", "Vue"], correctAnswer: 2 }, { id:7, text: "What is the capital of France?", options: ["London", "Madrid", "Paris", "Berlin"], correctAnswer: 2 }, { id: 8, text: "What is the capital of Germany?", options: ["London", "Madrid", "Paris", "Berlin"], correctAnswer: 3 }, { id: 9, text: "What is the capital of Spain?", options: ["London", "Madrid", "Paris", "Berlin"], correctAnswer: 1 }, { id: 10, text: "What is the capital of England?", options: ["London", "Madrid", "Paris", "Berlin"], correctAnswer: 0 } ];
 
-const predefinedExams = [
-  {
-    id: 101,
-    name: 'Mathematics Fundamentals',
-    subject: 'Math',
-    duration: '01:30:00',
-    price: 50,
-    questions: [
-      {
-        text: "What is 2 + 2?",
-        options: ["3", "4", "5", "6"],
-        correctAnswer: 1
-      },
-    ]
-  },
-  {
-    id: 102,
-    name: 'Physics Basics',
-    subject: 'Physics',
-    duration: '02:00:00',
-    price: 60,
-    questions: [
-      {
-        text: "What is the unit of force?",
-        options: ["Newton", "Joule", "Watt", "Pascal"],
-        correctAnswer: 0
-      }
-    ]
-  },
-];
+// --- COMPONENTS ---
 
-
-const initialExams: Exam[] = [
-  {
-    id: 1,
-    name: "Math Exam",
-    date: "2023-10-01",
-    students: 30,
-    status: "Upcoming",
-    subject: "Mathematics",
-    value: 100,
-    questions: 50,
-    timeRemains: "02:00:00",
-  },
-];
-
-
-const examsList = [
-  { id: 1, name: 'Mathematics Final', date: '2024-03-15', students: 45, status: 'Upcoming', subject: "Math", value: 100, questions: 26, timeRemains: "6:05:32" },
-  { id: 2, name: 'Physics Midterm', date: '2024-03-18', students: 38, status: 'Upcoming', subject: "Physics", value: 100, questions: 26, timeRemains: "10:30:54" },
-  { id: 3, name: 'Chemistry Lab Test', date: '2024-03-10', students: 42, status: 'Completed', subject: "Chemistry", value: 100, questions: 26, timeRemains: "1:30:22" },
-  { id: 4, name: 'Biology Assessment', date: '2024-03-05', students: 40, status: 'Completed', subject: "Biology", value: 100, questions: 26, timeRemains: "00:30:56" },
-];
-
-const registrations = [
-  { id: 1, student: 'Alice Johnson', exam: 'Mathematics Final', date: '2024-03-15', status: 'Confirmed' },
-  { id: 2, student: 'Bob Smith', exam: 'Physics Midterm', date: '2024-03-18', status: 'Pending' },
-  { id: 3, student: 'Carol White', exam: 'Chemistry Lab Test', date: '2024-03-10', status: 'Confirmed' },
-  { id: 4, student: 'David Brown', exam: 'Biology Assessment', date: '2024-03-05', status: 'Confirmed' },
-];
-
-const payments = [
-  { id: 1, student: 'Vignesh', amount: 150, date: '2025-03-01', status: 'Paid' },
-  { id: 2, student: 'Dhoni', amount: 150, date: '2025-03-02', status: 'Pending' },
-  { id: 3, student: 'Calypso', amount: 200, date: '2025-03-03', status: 'Paid' },
-  { id: 4, student: 'Vijay', amount: 200, date: '2025-02-28', status: 'Paid' },
-];
-
-
-function ExamComponent({ exam, onBack }: { exam: Exam, onBack: () => void }) {
+function ExamComponent({ 
+  exam, 
+  userProfile, // <-- 1. Accept the userProfile prop
+  onBack,
+  onComplete
+}: { 
+  exam: Exam;
+  userProfile: UserProfile | null; // <-- Add to the type definition
+  onBack: () => void;
+  onComplete: (exam: Exam, score: number, totalQuestions: number) => void;
+}) {
   const [currentView, setCurrentView] = useState<'terms' | 'welcome' | 'exam' | 'confirm'|'thankyou'>('terms');
   const [agreed, setAgreed] = useState(false);
   const [password, setPassword] = useState('');
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
-  const [timeLeft, setTimeLeft] = useState(exam.timeRemains);
-  const [email, setEmail] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(exam.duration);
+  const [email, setEmail] = useState(userProfile?.email || '');
+
+  const handleFinalSubmit = useCallback(() => {
+    let score = 0;
+    questions.forEach((question, index) => {
+      if (selectedAnswers[index] === question.correctAnswer) {
+        score++;
+      }
+    });
+    
+    onComplete(exam, score, questions.length);
+    
+    setCurrentView('thankyou');
+  }, [exam, onComplete, questions, selectedAnswers]);
 
   useEffect(() => {
     if (currentView === 'exam') {
@@ -258,6 +152,7 @@ function ExamComponent({ exam, onBack }: { exam: Exam, onBack: () => void }) {
           totalSeconds--;
           if (totalSeconds <= 0) {
             clearInterval(timer);
+            handleFinalSubmit(); // Auto-submit when time runs out
             return '00:00:00';
           }
           const newHours = Math.floor(totalSeconds / 3600);
@@ -268,7 +163,7 @@ function ExamComponent({ exam, onBack }: { exam: Exam, onBack: () => void }) {
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [currentView]);
+  }, [currentView, handleFinalSubmit]);
 
   const handleAgreeTerms = () => {
     setCurrentView('welcome');
@@ -287,10 +182,6 @@ function ExamComponent({ exam, onBack }: { exam: Exam, onBack: () => void }) {
 
   const handleSubmit = () => {
     setCurrentView('confirm');
-  };
-
-  const handleFinalSubmit = () => {
-    setCurrentView('thankyou');
   };
 
 
@@ -325,7 +216,7 @@ function ExamComponent({ exam, onBack }: { exam: Exam, onBack: () => void }) {
     };
     try {
       await emailjs.send(
-        "service_5hmqqzg",    
+        "service_5hmqqzg",      
         "template_0qhaaqf",   
         templateParams,
         "NCQ-5D-Axdtas-n3s"        
@@ -336,7 +227,6 @@ function ExamComponent({ exam, onBack }: { exam: Exam, onBack: () => void }) {
       alert("Failed to send OTP. Please try again.");
     }
   };
-
 
   if (currentView === 'terms') {
     return (
@@ -356,7 +246,7 @@ function ExamComponent({ exam, onBack }: { exam: Exam, onBack: () => void }) {
               onChange={(e) => setAgreed(e.target.checked)}
               className="h-4 w-4 text-indigo-600"
             />
-            <label htmlFor="agree">Agreed in all terms</label>
+            <label htmlFor="agree">I agree to the terms and conditions</label>
           </div>
           <div className="flex gap-4">
             <button
@@ -408,18 +298,19 @@ function ExamComponent({ exam, onBack }: { exam: Exam, onBack: () => void }) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-          <h2 className="text-2xl font-bold mb-2">Welcome ,</h2>
-          <h3 className="text-xl mb-6">Are you ready to take your exam</h3>
+          <h2 className="text-2xl font-bold mb-2">Welcome</h2>
+          <h3 className="text-xl mb-6">Are you ready to take your exam?</h3>
           <p className="text-gray-600 mb-6">
             Provide the Email you used during registration to receive a password code.
           </p>
           <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              className="w-full p-2 mb-6 border rounded-lg"
-            />
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="w-full p-2 mb-6 border rounded-lg bg-gray-100" // Style it as disabled
+            readOnly // <-- Make the field read-only
+          />
           <input
             type="password"
             value={password}
@@ -490,12 +381,14 @@ function ExamComponent({ exam, onBack }: { exam: Exam, onBack: () => void }) {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Timer size={16} className="text-gray-400" />
-              <span className={timeLeft.startsWith('00') ? 'text-red-500' : ''}>
+              <span className={timeLeft.startsWith('00:0') ? 'text-red-500 font-bold' : ''}>
                 {timeLeft}
               </span>
             </div>
-            <span className="text-gray-600">Welcome John</span>
-            <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+            <span className="text-gray-600">Welcome, {userProfile?.name || 'User'}</span>
+            <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+               {userProfile?.name ? userProfile.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
+            </div>
           </div>
         </div>
       </header>
@@ -523,7 +416,7 @@ function ExamComponent({ exam, onBack }: { exam: Exam, onBack: () => void }) {
               >
                 <input
                   type="radio"
-                  name="answer"
+                  name={`answer-${currentQuestion}`}
                   checked={selectedAnswers[currentQuestion] === index}
                   onChange={() => handleAnswerSelect(currentQuestion, index)}
                   className="mr-3"
@@ -538,141 +431,159 @@ function ExamComponent({ exam, onBack }: { exam: Exam, onBack: () => void }) {
   );
 }
 
-function Sidebar({ activePage, setActivePage }: { activePage: string; setActivePage: (page: string) => void }) {
-  const navigate = useNavigate();
-  const handleSignOut = () => {
-    navigate('/login');
-  };
+function Sidebar({ activePage, setActivePage, onSignOut }: { activePage: string; setActivePage: (page: string) => void; onSignOut: () => void; }) {
   return (
-    <div className="w-64 bg-indigo-900 h-screen fixed left-0 top-0 text-white p-6">
+    <div className="w-64 bg-indigo-900 h-screen fixed left-0 top-0 text-white p-6 flex flex-col">
       <div className="mb-8">
         <h1 className="text-2xl font-bold">EduQuest</h1>
       </div>
       
-      <nav className="space-y-4">
-        <a 
-          href="#" 
-          className={`flex items-center space-x-3 p-3 rounded-lg ${activePage === 'dashboard' ? 'bg-indigo-800' : 'hover:bg-indigo-800'}`}
-          onClick={() => setActivePage('dashboard')}
-        >
-          <Home size={20} />
-          <span>Dashboard</span>
-        </a>
-        <a 
-          href="#" 
-          className={`flex items-center space-x-3 p-3 rounded-lg ${activePage === 'exams' ? 'bg-indigo-800' : 'hover:bg-indigo-800'}`}
-          onClick={() => setActivePage('exams')}
-        >
-          <BookOpen size={20} />
-          <span>Exams</span>
-        </a>
-        <a 
-          href="#" 
-          className={`flex items-center space-x-3 p-3 rounded-lg ${activePage === 'register' ? 'bg-indigo-800' : 'hover:bg-indigo-800'}`}
-          onClick={() => setActivePage('register')}
-        >
-          <ClipboardList size={20} />
-          <span>Register</span>
-        </a>
-        <a 
-          href="#" 
-          className={`flex items-center space-x-3 p-3 rounded-lg ${activePage === 'reports' ? 'bg-indigo-800' : 'hover:bg-indigo-800'}`}
-          onClick={() => setActivePage('reports')}
-        >
-          <FileText size={20} />
-          <span>Reports</span>
-        </a>
-        <a 
-          href="#" 
-          className={`flex items-center space-x-3 p-3 rounded-lg ${activePage === 'payments' ? 'bg-indigo-800' : 'hover:bg-indigo-800'}`}
-          onClick={() => setActivePage('payments')}
-        >
-          <CreditCard size={20} />
-          <span>Payment</span>
-        </a>
+      <nav className="space-y-4 flex-grow">
+        {/* ... navigation links ... */}
+        <a href="#" className={`flex items-center space-x-3 p-3 rounded-lg ${activePage === 'dashboard' ? 'bg-indigo-800' : 'hover:bg-indigo-800'}`} onClick={() => setActivePage('dashboard')}><Home size={20} /><span>Dashboard</span></a>
+        <a href="#" className={`flex items-center space-x-3 p-3 rounded-lg ${activePage === 'exams' ? 'bg-indigo-800' : 'hover:bg-indigo-800'}`} onClick={() => setActivePage('exams')}><BookOpen size={20} /><span>My Exams</span></a>
+        <a href="#" className={`flex items-center space-x-3 p-3 rounded-lg ${activePage === 'register' ? 'bg-indigo-800' : 'hover:bg-indigo-800'}`} onClick={() => setActivePage('register')}><ClipboardList size={20} /><span>Register for Exam</span></a>
+        <a href="#" className={`flex items-center space-x-3 p-3 rounded-lg ${activePage === 'reports' ? 'bg-indigo-800' : 'hover:bg-indigo-800'}`} onClick={() => setActivePage('reports')}><FileText size={20} /><span>My Results</span></a>
+        <a href="#" className={`flex items-center space-x-3 p-3 rounded-lg ${activePage === 'payments' ? 'bg-indigo-800' : 'hover:bg-indigo-800'}`} onClick={() => setActivePage('payments')}><CreditCard size={20} /><span>Payment History</span></a>
       </nav>
       
-      <div className="absolute bottom-8 space-y-4 w-52">
-        <a href="#" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-indigo-800">
+      <div>
+        {/* UPDATED: onClick now calls the prop */}
+        <a href="#" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-indigo-800" onClick={onSignOut}>
           <LogOut size={20} />
-          <button onClick={handleSignOut}  
-            style={{
-              padding: '10px 40px',
-              fontSize: '16px',
-              cursor: 'pointer',
-              borderRadius: '5px',
-              border: 'none',
-              backgroundColor: 'bg-indigo-800',
-              color: 'white'
-            }}>Sign out</button>
+          <span>Sign out</span>
         </a>
       </div>
     </div>
   );
 }
-
-function StatCard({ title, value, data, color }: { title: string; value: number; data: any[]; color: string }) {
-  return (
-    <div className="bg-white rounded-xl p-6 shadow-lg">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="text-gray-500 text-sm mb-1">{title}</h3>
-          <p className="text-3xl font-bold">{value}</p>
+function Dashboard({ exams, reports, onStartExam, setActivePage }: { 
+    exams: Exam[]; 
+    reports: Report[];
+    onStartExam: (exam: Exam) => void;
+    setActivePage: (page: string) => void;
+  }) {
+    // Find the next upcoming exam by sorting
+    const upcomingExams = exams
+      .filter(e => e.status === 'Upcoming' || e.status === 'Registered')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    const nextExam = upcomingExams[0];
+  
+    // Get the last 3 reports
+    const recentReports = reports.slice(-3).reverse();
+  
+    return (
+      <div className="space-y-8">
+        {/* Top section with primary actions and info */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+  
+          {/* --- UP NEXT CARD (MAIN FOCUS) --- */}
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-lg p-6 border-l-4 border-indigo-500">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Up Next</h3>
+            {nextExam ? (
+              <div>
+                <h4 className="text-2xl font-bold text-indigo-700">{nextExam.examName}</h4>
+                <p className="text-gray-500 mb-4">{nextExam.subject}</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-6">
+                  <div className="flex items-center gap-2">
+                    <ClipboardList size={18} className="text-indigo-400" />
+                    <span>Questions TBD</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Timer size={18} className="text-indigo-400" />
+                    <span>{nextExam.duration}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">Date:</span>
+                    <span>{new Date(nextExam.date).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onStartExam(nextExam)}
+                  className="w-full md:w-auto bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-700 transition-transform transform hover:scale-105"
+                >
+                  Start Exam Now
+                </button>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                 <CheckCircle2 size={48} className="mx-auto text-green-500 mb-4" />
+                 <h4 className="text-xl font-semibold">You're all caught up!</h4>
+                 <p className="text-gray-500 mt-2">There are no upcoming exams on your schedule.</p>
+                 <button
+                    onClick={() => setActivePage('register')}
+                    className="mt-4 bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600"
+                 >
+                   Register for a New Exam
+                 </button>
+              </div>
+            )}
+          </div>
+  
+          {/* --- RECENT PERFORMANCE CARD --- */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Recent Performance</h3>
+            {recentReports.length > 0 ? (
+              <div className="space-y-4">
+                {recentReports.map(report => (
+                  <div key={report.id} className="bg-gray-50 p-3 rounded-lg">
+                    <p className="font-semibold text-gray-700">{report.subject}</p>
+                    <p className="text-sm text-gray-500">
+                      Score: <span className="font-bold text-indigo-600">{report.score} / {report.totalQuestions}</span>
+                    </p>
+                  </div>
+                ))}
+                <button 
+                  onClick={() => setActivePage('reports')}
+                  className="text-sm font-semibold text-indigo-600 hover:underline mt-2">
+                    View All Reports →
+                </button>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <FileText size={40} className="mx-auto text-gray-300" />
+                <p className="text-gray-500 mt-4">Complete an exam to see your performance here.</p>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* --- UPCOMING SCHEDULE TABLE --- */}
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="p-6">
+            <h3 className="text-xl font-bold text-gray-800">Your Upcoming Schedule</h3>
+          </div>
+          {upcomingExams.length > 0 ? (
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Exam Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {upcomingExams.map(exam => (
+                  <tr key={exam.registrationId}>
+                    <td className="px-6 py-4 font-medium">{exam.examName}</td>
+                    <td className="px-6 py-4">{exam.subject}</td>
+                    <td className="px-6 py-4">{new Date(exam.date).toLocaleDateString()}</td>
+                    <td className="px-6 py-4">{exam.duration}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-center text-gray-500 py-8">No exams are currently scheduled.</p>
+          )}
         </div>
       </div>
-      <div className="h-32">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={color} stopOpacity={0.4} />
-                <stop offset="100%" stopColor={color} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <Area
-              type="monotone"
-              dataKey={title.toLowerCase()}
-              stroke={color}
-              fill={`url(#gradient-${title})`}
-              strokeWidth={2}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
+    );
+  }
 
-function Dashboard() {
-  return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-2 gap-6">
-        <StatCard
-          title="Exams"
-          value={203}
-          data={data}
-          color="#6366f1"
-        />
-        <StatCard
-          title="Students"
-          value={351}
-          data={data}
-          color="#ec4899"
-        />
-      </div>
-    </div>
-  );
-}
-
-function ExamsPage({
-  exams,
-  onStartExam,
-  onCompleteExam,
-}: {
-  exams: Exam[];
-  onStartExam: (exam: Exam) => void;
-  onCompleteExam: (examId: number) => void;
-}) {
+function ExamsPage({ exams, onStartExam }: { exams: Exam[]; onStartExam: (exam: Exam) => void; }) {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -700,11 +611,11 @@ function ExamsPage({
           </thead>
           <tbody className="divide-y divide-gray-200">
             {exams.map((exam) => (
-              <tr key={exam.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap font-medium">{exam.name}</td>
+              <tr key={exam.registrationId} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap font-medium">{exam.examName}</td>
                 <td className="px-6 py-4 whitespace-nowrap">{exam.subject}</td>
                 <td className="px-6 py-4 whitespace-nowrap">{exam.date}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{exam.timeRemains}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{exam.duration}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span
                     className={`px-2 py-1 rounded-full text-xs ${
@@ -717,7 +628,7 @@ function ExamsPage({
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {exam.status === 'Upcoming' && (
+                  {(exam.status === 'Upcoming' || exam.status === 'Registered') ? (
                     <button
                       onClick={() => onStartExam(exam)}
                       className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors"
@@ -725,15 +636,8 @@ function ExamsPage({
                       <CheckCircle2 size={16} />
                       Start Exam
                     </button>
-                  )}
-                  {(exam.status === 'Upcoming') && (
-                    <button
-                      onClick={() => onCompleteExam(exam.id)}
-                      className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-colors"
-                    >
-                      <CheckCircle2 size={16} />
-                      .
-                    </button>
+                  ) : (
+                    <span className="text-gray-500">--</span>
                   )}
                 </td>
               </tr>
@@ -745,26 +649,14 @@ function ExamsPage({
   );
 }
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
-
-function RegisterPage({ 
-  onExamRegistered,
-  registeredExamIds,
-  onRemoveAvailableExam,
-  availableExams
- 
+function RegisterPage({
+  availableExams,
+  onSuccessfulRegistration
 }: {
-  availableExams: typeof predefinedExams; 
-  onExamRegistered: (exam: Exam) => void;
-  registeredExamIds: number[];
-  onRemoveAvailableExam: (id: number) => void;
+  availableExams: AvailableExam[];
+  onSuccessfulRegistration: () => Promise<void>;
 }) {
-  const [selectedExam, setSelectedExam] = useState<typeof predefinedExams[0] | null>(null);
+  const [selectedExam, setSelectedExam] = useState<AvailableExam | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('credit');
   const [cardDetails, setCardDetails] = useState({
@@ -773,40 +665,43 @@ function RegisterPage({
     cvv: ''
   });
 
-  const handleRegister = (exam: typeof predefinedExams[0]) => {
+  const handleRegister = (exam: AvailableExam) => {
     setSelectedExam(exam);
     setShowPayment(true);
   };
   
+// In Dash.tsx, inside the RegisterPage component
 
-  const handlePaymentSubmit = () => {
+// In Dash.tsx, inside the RegisterPage component
+
+  const handlePaymentSubmit = async () => {
     if (!selectedExam) return;
-    
-    const newExam: Exam = {
-      id: Date.now(), 
-      name: selectedExam.name,
-      subject: selectedExam.subject,
-      value: selectedExam.price,
-      questions: selectedExam.questions.length,
-      timeRemains: selectedExam.duration,
-      date: new Date().toISOString().split('T')[0],
-      students: 1,
-      status: 'Upcoming'
-    };
-    
-    onExamRegistered(newExam);
-    setShowPayment(false);
-    onRemoveAvailableExam(selectedExam.id);
-    
-    setSelectedExam(null);
-    setShowPayment(false);
-    setCardDetails({ number: '', expiry: '', cvv: '' });
+
+    try {
+      // Add paymentMethod to the request body
+      await api.post('/payments/create', {
+        examId: selectedExam.id,
+        amount: selectedExam.price,
+        paymentMethod: paymentMethod // <-- ADD THIS LINE
+      });
+
+      // ... rest of the function is the same
+      await api.post(`/exams/${selectedExam.id}/register`);
+      alert('Registration and Payment successful!');
+      await onSuccessfulRegistration();
+      setShowPayment(false);
+      setSelectedExam(null);
+
+    } catch (error) {
+      console.error("Failed to register or create payment:", error);
+      alert("There was an error during registration. Please try again.");
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">{availableExams.length > 0 ? 'Available Exams' : 'No Exams Available'}</h2>
+        <h2 className="text-xl font-semibold">{availableExams.length > 0 ? 'Available Exams' : 'No New Exams Available'}</h2>
       </div>
 
       {!showPayment ? (
@@ -814,13 +709,13 @@ function RegisterPage({
           {availableExams.map((exam) => (
             <div key={exam.id} className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow">
               <div className="p-6">
-                <h3 className="text-lg font-semibold mb-2 text-indigo-700">{exam.name}</h3>
+                <h3 className="text-lg font-semibold mb-2 text-indigo-700">{exam.examName}</h3>
                 <div className="flex justify-between text-sm text-gray-600 mb-2">
                   <span>Subject: {exam.subject}</span>
                   <span>Duration: {exam.duration}</span>
                 </div>
                 <div className="mt-4">
-                  <p className="text-sm text-gray-500 mb-2">Includes {exam.questions.length} questions</p>
+                  <p className="text-sm text-gray-500 mb-2">Includes {exam.totalQuestions} questions</p>
                 </div>
                 <div className="flex justify-between items-center mt-4">
                   <span className="text-lg font-bold text-green-600">${exam.price}</span>
@@ -842,11 +737,11 @@ function RegisterPage({
           <div className="mb-6">
             <h4 className="font-medium mb-2">Exam Details</h4>
             <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="font-semibold text-indigo-700">{selectedExam?.name}</p>
+              <p className="font-semibold text-indigo-700">{selectedExam?.examName}</p>
               <div className="grid grid-cols-2 gap-2 mt-2">
                 <p>Subject: {selectedExam?.subject}</p>
                 <p>Duration: {selectedExam?.duration}</p>
-                <p>Questions: {selectedExam?.questions.length}</p>
+                <p>Questions: {selectedExam?.totalQuestions}</p>
                 <p className="font-bold">Price: ${selectedExam?.price}</p>
               </div>
             </div>
@@ -861,7 +756,7 @@ function RegisterPage({
               >
                 Credit Card
               </button>
-              <button
+                <button
                 className={`px-4 py-2 rounded-lg border-2 ${paymentMethod === 'paypal' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-300'}`}
                 onClick={() => setPaymentMethod('paypal')}
               >
@@ -928,212 +823,296 @@ function RegisterPage({
   );
 }
 
-
-function ReportsPage() {
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="flex space-x-4">
-          <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-indigo-700">
-            <Download size={20} />
-            <span>Download Report</span>
-          </button>
-          <button className="bg-white text-gray-700 px-4 py-2 rounded-lg flex items-center space-x-2 border hover:bg-gray-50">
-            <Upload size={20} />
-            <span>Export Data</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-lg">
-          <h3 className="text-lg font-semibold mb-4">Monthly Exam Statistics</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="exams" fill="#6366f1" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-lg">
-          <h3 className="text-lg font-semibold mb-4">Student Enrollment Trends</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Area type="monotone" dataKey="students" stroke="#ec4899" fill="#fce7f3" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PaymentsPage() {
+function ReportsPage({ reports }: { reports: Report[]; }) {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div className="relative">
           <input
             type="text"
-            placeholder="Search payments..."
-            className="pl-10 pr-4 py-2 border rounded-lg w-64"
+            placeholder="Search reports..."
+            className="pl-10 pr-4 py-2 border rounded-lg w-64 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
           <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
         </div>
-        
       </div>
-
-      <div className="grid grid-cols-2 gap-6 mb-6">
-        
-        <div className="bg-white p-6 rounded-xl shadow-lg">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <CheckCircle className="text-blue-600" size={24} />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Paid Invoices</p>
-              <p className="text-2xl font-bold">3</p>
-            </div>
-          </div>
+      {reports.length === 0 ? (
+        <div className="text-center py-10 bg-white rounded-xl shadow-lg">
+          <FileText size={48} className="mx-auto text-gray-300" />
+          <h3 className="mt-2 text-xl font-semibold">No Reports Yet</h3>
+          <p className="text-gray-500">Complete an exam to see your report here.</p>
         </div>
-        <div className="bg-white p-6 rounded-xl shadow-lg">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <CreditCard className="text-yellow-600" size={24} />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Pending</p>
-              <p className="text-2xl font-bold">1</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {payments.map((payment) => (
-              <tr key={payment.id}>
-                <td className="px-6 py-4 whitespace-nowrap">{payment.student}</td>
-                <td className="px-6 py-4 whitespace-nowrap">${payment.amount}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{payment.date}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 rounded-full text-xs ${
-                    payment.status === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {payment.status}
-                  </span>
-                </td>
+      ) : (
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exam Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {reports.map((report) => (
+                <tr key={report.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap font-medium">{report.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{report.subject}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{report.date}</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-semibold text-indigo-600">
+                    {report.score} / {report.totalQuestions}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => alert(`Viewing report for ${report.name}`)}
+                      className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
+                    >
+                      <Eye size={16} />
+                      View
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
 
+function PaymentsPage({ payments }: { payments: Payment[] }) {
+      const paidCount = payments.filter(p => p.status === 'Paid').length;
+      const pendingCount = payments.filter(p => p.status !== 'Paid').length; // More robust
+
+      return (
+          <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                  <div className="relative">
+                      <input
+                          type="text"
+                          placeholder="Search payments..."
+                          className="pl-10 pr-4 py-2 border rounded-lg w-64"
+                      />
+                      <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
+                  </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6 mb-6">
+                  <div className="bg-white p-6 rounded-xl shadow-lg">
+                      <div className="flex items-center space-x-4">
+                          <div className="p-3 bg-blue-100 rounded-lg">
+                              <CheckCircle className="text-blue-600" size={24} />
+                          </div>
+                          <div>
+                              <p className="text-sm text-gray-500">Paid Invoices</p>
+                              <p className="text-2xl font-bold">{paidCount}</p>
+                          </div>
+                      </div>
+                  </div>
+                  <div className="bg-white p-6 rounded-xl shadow-lg">
+                      <div className="flex items-center space-x-4">
+                          <div className="p-3 bg-yellow-100 rounded-lg">
+                              <CreditCard className="text-yellow-600" size={24} />
+                          </div>
+                          <div>
+                              <p className="text-sm text-gray-500">Pending</p>
+                              <p className="text-2xl font-bold">{pendingCount}</p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                  <table className="w-full">
+                      <thead className="bg-gray-50">
+                          <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                          {payments.map((payment) => (
+                              <tr key={payment.id}>
+                                  <td className="px-6 py-4 whitespace-nowrap">{payment.studentName}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap">${payment.amount}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap">{payment.date}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                      <span className={`px-2 py-1 rounded-full text-xs ${
+                                          payment.status === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                                      }`}>
+                                          {payment.status}
+                                      </span>
+                                  </td>
+                              </tr>
+                          ))}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      );
+  }
+
+// ===================================================================================
+// ============================= MAIN DASH COMPONENT =================================
+// ===================================================================================
+
 function Dash() {
   const [activePage, setActivePage] = useState('dashboard');
-  const [userFullName, setUserFullName] = useState('');
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
-  const [exams, setExams] = useState<Exam[]>(initialExams);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [showDropdown, setShowDropdown] = useState(false);
+  
+  // Centralized State for data from the backend
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  
-  const [availableExamIds, setAvailableExamIds] = useState<number[]>(
-    predefinedExams.map(exam => exam.id)
-  );
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [availableExams, setAvailableExams] = useState<AvailableExam[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]); // This is still frontend-only for now
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        // Use the new 'api' instance for all requests
-        const profileResponse = await api.get('/users/profile');
-        setUserProfile(profileResponse.data);
-        
-        
-      } catch (error) {
-        console.error('Failed to fetch initial data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // REFACTORED: Central data fetching logic
+  const fetchAllData = useCallback(async () => {
+    try {
+      // Fetch all essential data in parallel for speed
+      const [
+        profileRes,
+        registeredRes,
+        availableRes,
+        paymentsRes
+      ] = await Promise.all([
+        api.get('/users/profile'),
+        api.get('/exams/registered'),
+        api.get('/exams/available'),
+        api.get('/payments') // Assuming this is the correct endpoint for user's payments
+      ]);
+      
+      setUserProfile(profileRes.data);
+      setExams(registeredRes.data);
+      setAvailableExams(availableRes.data);
+      setPayments(paymentsRes.data);
 
-    fetchInitialData();
+    } catch (error) {
+      console.error('Failed to fetch initial data:', error);
+      // Handle error gracefully, maybe show a toast notification
+    }
   }, []);
+
+  // Fetch data on initial component load
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
+  const handleSignOut = useCallback(() => {
+    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
+    navigate('/login');
+  }, [navigate]);
+
+    useEffect(() => {
+      const interval = setInterval(() => {
+        const token = getAuthToken();
+        if (!token) {
+          handleSignOut();
+          return;
+        }
+        try {
+          const decodedToken = jwtDecode<DecodedToken>(token); // Use the interface here
+          const currentTime = Date.now() / 1000;
+          if (decodedToken.exp < currentTime) {
+            console.log("Token expired, logging out.");
+            handleSignOut();
+          }
+        } catch (error) {
+          console.error("Invalid token, logging out.", error);
+          handleSignOut();
+        }
+      }, 60000); 
+    
+      return () => clearInterval(interval); 
+    }, [handleSignOut]);
   
-
-  const handleExamRegistered = (newExam: Exam) => {
-    setExams(prev => [...prev, newExam]);
-    setAvailableExamIds(prev => prev.filter(id => id !== newExam.id));
-    setActivePage('exams');
+  // This function will be passed to the RegisterPage to trigger a refresh
+  const handleSuccessfulRegistration = async () => {
+    await fetchAllData(); // Refetch all data to get the latest lists
+    setActivePage('exams'); // Switch to the "My Exams" page to show the new exam
   };
 
-  const handleRemoveAvailableExam = (id: number) => {
-    setAvailableExamIds(prev => prev.filter(examId => examId !== id));
+    // In Dash.tsx, REPLACE your old handleExamComplete with this:
+  const handleExamComplete = async (completedExam: Exam, score: number, totalQuestions: number): Promise<boolean> => {
+    try {
+      // Tell the backend the exam is complete
+      await api.post(`/exams/complete/${completedExam.registrationId}`, { score });
+
+      // Refresh all data from the database
+      await fetchAllData(); 
+      setSelectedExam(null);
+      return true; // Return true on success
+
+    } catch (error) {
+      console.error("Failed to submit exam completion:", error);
+      alert("There was an error submitting your results. Please contact support.");
+      return false; // Return false on failure
+    }
   };
 
-  const handleStartExam = (exam: Exam) => {
-    setSelectedExam(exam);
+
+  const handleStartExam = async (exam: Exam) => {
+    try {
+        // Tell the backend we are starting the exam
+        await api.post(`/exams/start/${exam.registrationId}`);
+        // If successful, show the exam component
+        setSelectedExam(exam);
+    } catch(error) {
+        console.error("Failed to start exam:", error);
+        alert("Could not start the exam. Please try again.");
+    }
   };
 
   const handleBackFromExam = () => {
     setSelectedExam(null);
   };
-
-  const availableExams = predefinedExams.filter(exam => 
-    availableExamIds.includes(exam.id)
-  );
+  
   const toggleDropdown = () => {
     setShowDropdown((prev) => !prev);
   };
 
-  const handleSettingsClick = () => {
-    setShowSettings(true); 
-    setShowDropdown(false); 
-  };
-
-  const handleEditClick = () => {
-    console.log("Edit clicked");
-  };
-
-  const closeSettings = () => {
-    setShowSettings(false); // Close the settings panel
-  };
   const toggleTheme = () => {
     setIsDarkMode((prevMode) => !prevMode);
   };
 
   if (selectedExam) {
-    return <ExamComponent exam={selectedExam} onBack={handleBackFromExam} />;
+    return <ExamComponent 
+              exam={selectedExam} 
+              onBack={handleBackFromExam} 
+              onComplete={handleExamComplete} 
+              userProfile={userProfile} // <-- PASS THE PROP HERE
+           />;
   }
+  // In Dash.tsx, right before the 'return' statement
+
+  // In Dash.tsx, right before the 'return' statement
+
+    const completedExamsAsReports: Report[] = exams
+    // Add a check to ensure the score exists and is a number
+    .filter((exam): exam is Exam & { score: number } => 
+      exam.status === 'Completed' && typeof exam.score === 'number'
+    )
+    .map(exam => ({
+      id: exam.registrationId,
+      name: `${exam.examName} Result`,
+      subject: exam.subject,
+      date: exam.date,
+      score: exam.score, // This will now be correctly typed as a number
+      totalQuestions: 10, // This should come from your backend in the future
+      status: 'Completed'
+    }));
 
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-800'}`}>
-      <Sidebar activePage={activePage} setActivePage={setActivePage} />
+      <Sidebar activePage={activePage} setActivePage={setActivePage} onSignOut={handleSignOut}/>
       
       <div className="ml-64 p-8 relative">
         <div className="flex justify-between items-center mb-8">
@@ -1144,7 +1123,6 @@ function Dash() {
             <p className="text-gray-500">Welcome back, {userProfile?.name || 'User'}</p>
           </div>
           
-            
           <div className="flex items-center space-x-4">
             <button className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200">
               <Bell size={20} />
@@ -1155,46 +1133,37 @@ function Dash() {
             >
               {isDarkMode ? '🌞' : '🌙'}
             </button>
-            <div className="flex items-center space-x-2">
-              <div className="relative">
-                <div
-                  className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white cursor-pointer"
-                  onClick={toggleDropdown}
-                >
-                  {userProfile?.name ? userProfile.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
-                </div>
-
-                {showDropdown && (
-                  <div className="absolute mt-2 right-0 bg-white shadow-lg rounded-lg w-40">
-                    <button
-                      onClick={handleSettingsClick}
-                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                    >
-                      Settings
-                    </button>
-                    <button
-                      onClick={handleEditClick}
-                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                    >
-                      Edit
-                    </button>
-                  </div>
-                )}
+            <div className="relative">
+              <div
+                className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white cursor-pointer"
+                onClick={toggleDropdown}
+              >
+                {userProfile?.name ? userProfile.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
               </div>
+
+              {showDropdown && (
+                <div className="absolute mt-2 right-0 bg-white shadow-lg rounded-lg w-40 z-10 text-gray-800">
+                  <button className="block w-full text-left px-4 py-2 hover:bg-gray-100">Settings</button>
+                  <button className="block w-full text-left px-4 py-2 hover:bg-gray-100">Edit</button>
+                </div>
+              )}
             </div>
           </div>
         </div>
-        {activePage === 'dashboard' && <Dashboard />}
-        {activePage === 'exams' && <ExamsPage exams={exams} onStartExam={handleStartExam} onCompleteExam={function (examId: number): void {
-          throw new Error('Function not implemented.');
-        } } />}
+
+        {activePage === 'dashboard' && <Dashboard 
+            exams={exams} 
+            reports={completedExamsAsReports} 
+            onStartExam={handleStartExam}
+            setActivePage={setActivePage} 
+        />}
+        {activePage === 'exams' && <ExamsPage exams={exams} onStartExam={handleStartExam} />}
         {activePage === 'register' && <RegisterPage 
             availableExams={availableExams}
-            onExamRegistered={handleExamRegistered}
-            registeredExamIds={exams.map(exam => exam.id)}
-            onRemoveAvailableExam={handleRemoveAvailableExam}/>}
-        {activePage === 'reports' && <ReportsPage />}
-        {activePage === 'payments' && <PaymentsPage />}
+            onSuccessfulRegistration={handleSuccessfulRegistration}
+        />}
+        {activePage === 'reports' && <ReportsPage reports={completedExamsAsReports} />}
+        {activePage === 'payments' && <PaymentsPage payments={payments} />}
       </div>
     </div>
   );
